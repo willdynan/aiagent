@@ -3,6 +3,8 @@ import argparse
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+from prompts import system_prompt
+from call_function import available_functions
 
 def main():
     
@@ -24,7 +26,12 @@ def main():
 
     response = client.models.generate_content(
         model="gemini-2.5-flash",
-        contents=messages)
+        contents=messages,
+        config=types.GenerateContentConfig(
+            tools=[available_functions],
+            system_instruction=system_prompt
+            ),
+        )
 
     if not response.usage_metadata:
         raise RuntimeError("no metadata")
@@ -38,7 +45,14 @@ def main():
         print(f"Prompt tokens: {prompt_tokens}")
         print(f"Response tokens: {response_tokens}")
 
-    print(f"Response: {response.text}")
+    if response.function_calls:
+        for function_call in response.function_calls:
+            args = dict(function_call.args)
+            if "directory" not in args or args["directory"] in ("", None):
+                args["directory"]= "."
+            print(f"Calling function: {function_call.name}({args})")
+    else:
+        print(response.text)
 
 if __name__ == "__main__":
     main()
