@@ -5,6 +5,7 @@ from google import genai
 from google.genai import types
 from prompts import system_prompt
 from call_function import available_functions
+from call_function import call_function
 
 def main():
     
@@ -44,13 +45,37 @@ def main():
 
         print(f"Prompt tokens: {prompt_tokens}")
         print(f"Response tokens: {response_tokens}")
-
+    """
     if response.function_calls:
         for function_call in response.function_calls:
             args = dict(function_call.args)
             if "directory" not in args or args["directory"] in ("", None):
                 args["directory"]= "."
             print(f"Calling function: {function_call.name}({args})")
+    else:
+        print(response.text)
+    """
+
+    if response.function_calls:
+        function_results = []
+
+        for function_call in response.function_calls:
+            function_call_result = call_function(function_call, verbose=args.verbose)
+
+            if not function_call_result.parts:
+                raise RuntimeError("function_call_result has no parts")
+            
+            part = function_call_result.parts[0]
+            if part.function_response is None:
+                raise RuntimeError("no function_response in part")
+
+            if part.function_response.response is None:
+                raise RuntimeError("no response in function_response")
+            
+            function_results.append(part)
+
+            if args.verbose:
+                print(f"-> {part.function_response.response}")
     else:
         print(response.text)
 
